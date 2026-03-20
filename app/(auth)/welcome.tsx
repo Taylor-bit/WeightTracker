@@ -3,12 +3,12 @@ import { Pressable, Text, View } from "react-native";
 
 import { useAppStyles } from "@/hooks/useAppStyles";
 
+function handleContinue() {
+  router.push("./users");
+}
+
 export default function WelcomeScreen() {
   const { styles, insets } = useAppStyles();
-
-  function handleContinue() {
-    router.push("./users");
-  }
 
   return (
     <View style={styles.safeArea}>

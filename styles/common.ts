@@ -63,6 +63,34 @@ export function makeCommonStyles(theme: AppTheme) {
       marginBottom: 4,
     },
 
+    listContent: {
+      paddingBottom: 16,
+    },
+
+    entryCard: {
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 12,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+
+    entryWeight: {
+      fontSize: 20,
+      fontWeight: "700",
+      marginBottom: 4,
+      color: theme.text,
+    },
+
+    entryDate: {
+      fontSize: 14,
+      color: theme.secondaryText,
+    },
+
     input: {
       backgroundColor: theme.inputBackground,
       borderWidth: 1,
@@ -162,6 +190,10 @@ export function makeCommonStyles(theme: AppTheme) {
     deleteButtonText: {
       color: theme.primaryText,
       fontWeight: "600",
+    },
+
+    modalWrapper: {
+      justifyContent: "center",
     },
   });
 }

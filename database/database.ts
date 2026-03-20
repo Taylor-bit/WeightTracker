@@ -1,3 +1,4 @@
+import { WeightEntry } from "@/models/weightEntry";
 import * as SQLite from "expo-sqlite";
 
 export const db = SQLite.openDatabaseSync("weight-tracker.db");
@@ -128,4 +129,24 @@ export function updateWeightEntry(
       WHERE id = ?`,
     [weight, entryDate, entryId],
   );
+}
+
+export function getEarliestWeightEntry(userId: number) {
+  return db.getFirstSync(
+    `SELECT * FROM weight_entries 
+     WHERE user_id = ? 
+     ORDER BY entry_date ASC 
+     LIMIT 1`,
+    [userId],
+  ) as WeightEntry | null;
+}
+
+export function getPreviousWeightEntry(userId: number) {
+  return db.getFirstSync(
+    `SELECT * FROM weight_entries 
+     WHERE user_id = ? 
+     ORDER BY entry_date DESC 
+     LIMIT 1 OFFSET 1`,
+    [userId],
+  ) as WeightEntry | null;
 }

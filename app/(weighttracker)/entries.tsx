@@ -1,3 +1,4 @@
+import * as Notifications from "expo-notifications";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
@@ -7,7 +8,6 @@ import {
   Modal,
   Platform,
   Pressable,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -18,17 +18,13 @@ import {
   createWeightEntry,
   deleteWeightEntry,
   getCurrentUser,
+  getEarliestWeightEntry,
+  getPreviousWeightEntry,
   getUserById,
   getWeightEntriesForUser,
 } from "@/database/database";
 import { useAppStyles } from "@/hooks/useAppStyles";
-
-type WeightEntry = {
-  id: number;
-  user_id: number;
-  weight: number;
-  entry_date: string;
-};
+import { WeightEntry } from "@/models/weightEntry";
 
 export default function EntriesScreen() {
   const [userName, setUserName] = useState("");
@@ -61,7 +57,48 @@ export default function EntriesScreen() {
     }, []),
   );
 
-  function handleCreateEntry() {
+  async function maybeNotifyGoalAchieved(userId: number, newWeight: number) {
+    try {
+      const user = getUserById(userId);
+      if (!user?.goal_weight) return;
+
+      const goal = user.goal_weight;
+
+      const baselineEntry = getEarliestWeightEntry(userId);
+      const previousEntry = getPreviousWeightEntry(userId);
+
+      // do nothing if there are no previous entries
+      if (!baselineEntry || !previousEntry) return;
+
+      const baselineWeight = baselineEntry.weight;
+      const previousWeight = previousEntry.weight;
+
+      let crossed = false;
+
+      // Determine direction
+      if (baselineWeight > goal) {
+        // Losing weight
+        crossed = previousWeight > goal && newWeight <= goal;
+      } else if (baselineWeight < goal) {
+        // Gaining weight
+        crossed = previousWeight < goal && newWeight >= goal;
+      }
+
+      if (!crossed) return;
+
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "Goal achieved!",
+          body: `You reached your goal weight of ${goal}! Nice work!`,
+        },
+        trigger: null, // immediate
+      });
+    } catch (ex) {
+      console.log(ex);
+    }
+  }
+
+  async function handleCreateEntry() {
     const currentUserId = getCurrentUser();
     const formattedEntryDate = `${entryDate.getFullYear()}-${String(
       entryDate.getMonth() + 1,
@@ -80,6 +117,7 @@ export default function EntriesScreen() {
     }
 
     createWeightEntry(currentUserId, parsedWeight, formattedEntryDate);
+    await maybeNotifyGoalAchieved(currentUserId, parsedWeight);
 
     setWeight("");
     setEntryDate(new Date());
@@ -115,12 +153,16 @@ export default function EntriesScreen() {
           <FlatList
             data={entries}
             keyExtractor={(item) => item.id.toString()}
-            contentContainerStyle={localStyles.listContent}
+            contentContainerStyle={styles.listContent}
             renderItem={({ item }) => (
-              <View style={localStyles.entryCard}>
+              <View style={styles.entryCard}>
                 <View>
-                  <Text style={localStyles.entryWeight}>{item.weight}</Text>
-                  <Text style={localStyles.entryDate}>{item.entry_date}</Text>
+                  <Text style={[styles.entryWeight, { color: theme.text }]}>
+                    {item.weight}
+                  </Text>
+                  <Text style={[styles.entryDate, { color: theme.text }]}>
+                    {item.entry_date}
+                  </Text>
                 </View>
 
                 <Pressable
@@ -156,7 +198,7 @@ export default function EntriesScreen() {
             <View style={styles.modalOverlay}>
               <KeyboardAvoidingView
                 behavior={Platform.OS === "ios" ? "padding" : undefined}
-                style={localStyles.modalWrapper}
+                style={styles.modalWrapper}
               >
                 <View style={styles.modalCard}>
                   <Text style={styles.modalTitle}>Add Entry</Text>
@@ -222,31 +264,3 @@ export default function EntriesScreen() {
     </View>
   );
 }
-
-const localStyles = StyleSheet.create({
-  listContent: {
-    paddingBottom: 16,
-  },
-  entryCard: {
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "#2c2c2e",
-  },
-  entryWeight: {
-    fontSize: 20,
-    fontWeight: "700",
-    marginBottom: 4,
-    color: "#f4f4f5",
-  },
-  entryDate: {
-    fontSize: 14,
-    color: "#f4f4f5",
-  },
-  modalWrapper: {
-    justifyContent: "center",
-  },
-});
