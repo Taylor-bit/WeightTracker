@@ -23,6 +23,16 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="projection"
+        options={{
+          title: "Projection",
+          headerShown: false,
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="trending-up-outline" size={28} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           title: "Settings",

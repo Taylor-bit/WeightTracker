@@ -29,6 +29,15 @@ export function initDatabase() {
            FOREIGN KEY (user_id) REFERENCES users(id)
        );
    `);
+
+  db.execSync(`
+  CREATE TABLE IF NOT EXISTS user_projection_cache (
+    user_id INTEGER PRIMARY KEY,
+    last_aggregated_date TEXT NOT NULL,
+    weekly_data_json TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+`);
 }
 
 export function getUsers() {
@@ -105,6 +114,7 @@ export function createWeightEntry(
   weight: number,
   entryDate: string,
 ) {
+  clearProjectionCache(userId);
   const result = db.runSync(
     `INSERT INTO weight_entries (user_id, weight, entry_date)
       VALUES (?, ?, ?)`,
@@ -115,6 +125,7 @@ export function createWeightEntry(
 }
 
 export function deleteWeightEntry(entryId: number) {
+  clearProjectionCacheByEntryId(entryId);
   db.runSync(`DELETE FROM weight_entries WHERE id = ?`, [entryId]);
 }
 
@@ -123,6 +134,7 @@ export function updateWeightEntry(
   weight: number,
   entryDate: string,
 ) {
+  clearProjectionCacheByEntryId(entryId);
   db.runSync(
     `UPDATE weight_entries
       SET weight = ?, entry_date = ?
@@ -149,4 +161,82 @@ export function getPreviousWeightEntry(userId: number) {
      LIMIT 1 OFFSET 1`,
     [userId],
   ) as WeightEntry | null;
+}
+
+export function getUserGoalWeight(userId: number) {
+  const row = db.getFirstSync<{ goal_weight: number }>(
+    `SELECT goal_weight FROM users WHERE id = ?`,
+    [userId],
+  );
+
+  return row?.goal_weight ?? null;
+}
+
+export function getUserCurrentWeight(userId: number) {
+  const row = db.getFirstSync<{ weight: number }>(
+    `SELECT weight
+     FROM weight_entries
+     WHERE user_id = ?
+     ORDER BY entry_date DESC, id DESC
+     LIMIT 1`,
+    [userId],
+  );
+
+  return row?.weight ?? null;
+}
+
+export function getAllWeightEntriesAscending(userId: number) {
+  return db.getAllSync<WeightEntry>(
+    `SELECT *
+     FROM weight_entries
+     WHERE user_id = ?
+     ORDER BY entry_date ASC, id ASC`,
+    [userId],
+  );
+}
+
+export type ProjectionCacheRow = {
+  user_id: number;
+  last_aggregated_date: string;
+  weekly_data_json: string;
+};
+
+export function getProjectionCache(userId: number) {
+  return db.getFirstSync<ProjectionCacheRow>(
+    `SELECT *
+     FROM user_projection_cache
+     WHERE user_id = ?`,
+    [userId],
+  );
+}
+
+export function saveProjectionCache(
+  userId: number,
+  lastAggregatedDate: string,
+  weeklyDataJson: string,
+) {
+  db.runSync(
+    `INSERT OR REPLACE INTO user_projection_cache
+     (user_id, last_aggregated_date, weekly_data_json)
+     VALUES (?, ?, ?)`,
+    [userId, lastAggregatedDate, weeklyDataJson],
+  );
+}
+
+// If weight log is changed, cache is invalid
+export function clearProjectionCache(userId: number) {
+  db.runSync(`DELETE FROM user_projection_cache WHERE user_id = ?`, [userId]);
+}
+
+export function clearProjectionCacheByEntryId(entryId: number) {
+  db.runSync(
+    `DELETE
+     FROM user_projection_cache
+     WHERE user_id = (
+       SELECT user_id
+       FROM weight_entries
+       WHERE id = ?
+     )`,
+    [entryId],
+  );
 }
