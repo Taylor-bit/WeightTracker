@@ -10,6 +10,7 @@ import {
 } from "@/database/database";
 import { useAppStyles } from "@/hooks/useAppStyles";
 import { formatLocalDate, parseLocalDate } from "@/utils/dateHelper";
+import { exportWeightLogsCsv } from "@/utils/exportWeightLogs";
 
 function handleSwitchUser() {
   router.replace("/(auth)/users");
@@ -61,6 +62,21 @@ export default function SettingsScreen() {
     Alert.alert("Saved", "Your goal settings were updated.");
   }
 
+  async function handleExportCsv() {
+    if (!userId) {
+      Alert.alert("No user selected", "Please select a user first.");
+      return;
+    }
+
+    try {
+      const fileUri = await exportWeightLogsCsv(userId);
+      console.log("CSV exported to:", fileUri);
+    } catch (error) {
+      console.log(error);
+      Alert.alert("Export failed", "Could not export weight logs.");
+    }
+  }
+
   return (
     <View style={styles.safeArea}>
       <View style={[styles.container, { paddingTop: insets.top + 16 }]}>
@@ -107,6 +123,12 @@ export default function SettingsScreen() {
 
           <Pressable style={styles.secondaryButton} onPress={handleSwitchUser}>
             <Text style={styles.secondaryButtonText}>Switch User</Text>
+          </Pressable>
+
+          <Pressable style={styles.secondaryButton} onPress={handleExportCsv}>
+            <Text style={styles.secondaryButtonText}>
+              Export Weight Logs (.csv)
+            </Text>
           </Pressable>
         </View>
       </View>
